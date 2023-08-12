@@ -56,9 +56,9 @@ parser.add_argument('--batch_size', default=12, type=int)
 parser.add_argument('--block_size', default=1024, type=int)
 
 # model
-parser.add_argument('--n_layer', default=12, type=int)
-parser.add_argument('--n_head', default=12, type=int)
-parser.add_argument('--n_embd', default=768, type=int)
+parser.add_argument('--n_layer', default=4, type=int)
+parser.add_argument('--n_head', default=4, type=int)
+parser.add_argument('--n_embd', default=128, type=int)
 parser.add_argument('--dropout', default=0.0, type=float)
 parser.add_argument('--bias', action='store_true', default=False)
 parser.add_argument('--optim', default='AdamW', type=str)
@@ -83,7 +83,7 @@ parser.add_argument('--backend', default='nccl', type=str, choices=['nccl', 'glo
 # system
 parser.add_argument('--device', default='cuda', type=str, choices=['cpu', 'cuda', 'mps'])
 parser.add_argument('--dtype', default='bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16', type=str, choices=['float32', 'bfloat16', 'float16'])
-parser.add_argument('--compile', action='store_true', default=True)
+parser.add_argument('--compile', action='store_true', default=False)
 
 # Parse the arguments
 args = parser.parse_args()
