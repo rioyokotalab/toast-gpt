@@ -50,7 +50,7 @@ parser.add_argument('--wandb_project', default='owt', type=str)
 parser.add_argument('--wandb_run_name', default='gpt2', type=str)
 
 # data
-parser.add_argument('--dataset', default='openwebtext', type=str)
+parser.add_argument('--dataset', default='shakespeare', type=str)
 parser.add_argument('--gradient_accumulation_steps', default=5*8, type=int)
 parser.add_argument('--batch_size', default=12, type=int)
 parser.add_argument('--block_size', default=1024, type=int)
@@ -63,13 +63,17 @@ parser.add_argument('--dropout', default=0.0, type=float)
 parser.add_argument('--bias', action='store_true', default=False)
 parser.add_argument('--optim', default='AdamW', type=str)
 
-# adamw optimizer
-parser.add_argument('--learning_rate', default=6e-4, type=float)
+# optimizer config
+parser.add_argument('--learning_rate', default=3e-3, type=float)
 parser.add_argument('--max_iters', default=600000, type=int)
 parser.add_argument('--weight_decay', default=1e-1, type=float)
 parser.add_argument('--beta1', default=0.9, type=float)
 parser.add_argument('--beta2', default=0.95, type=float)
 parser.add_argument('--grad_clip', default=1.0, type=float)
+# shampoo
+parser.add_argument('--damping', default=1.0e-6, type=float)
+parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
+parser.add_argument('--statistics_compute_steps', default=100, type=int)
 
 # learning rate decay settings
 parser.add_argument('--decay_lr', action='store_true', default=True)
@@ -206,7 +210,7 @@ model.to(args.device)
 scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(args.optim, args.weight_decay, args.learning_rate, (args.beta1, args.beta2), device_type)
+optimizer = model.configure_optimizers(args.optim, args.weight_decay, args.learning_rate, (args.beta1, args.beta2), args, device_type)
 if args.init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory

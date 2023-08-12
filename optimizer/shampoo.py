@@ -61,7 +61,7 @@ class ShampooHyperParams:
         best_effort_shape_interpretation: bool = True
         # Type of grafting (SGD or AdaGrad).
         # https://arxiv.org/pdf/2002.11803.pdf
-        graft_type: int = LayerwiseGrafting.SGD
+        graft_type: int = None
         # Nesterov momentum
         nesterov: bool = True
 

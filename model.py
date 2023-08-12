@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from optimizer.shampoo import ShampooHyperParams, Shampoo
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -264,7 +265,7 @@ class GPT(nn.Module):
 
         return model
 
-    def configure_optimizers(self, optimizer_name, weight_decay, learning_rate, betas, device_type):
+    def configure_optimizers(self, optimizer_name, weight_decay, learning_rate, betas, args, device_type):
         # start with all of the candidate parameters
         param_dict = {pn: p for pn, p in self.named_parameters()}
         # filter out those that do not require grad
@@ -289,7 +290,9 @@ class GPT(nn.Module):
         if optimizer_name == 'AdamW':
             optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
             print(f"using fused AdamW: {use_fused}")
-        
+        if optimizer_name == 'Shampoo':
+            hyperparams = ShampooHyperParams(matrix_eps=args.damping, preconditioning_compute_steps=args.preconditioning_compute_steps,statistics_compute_steps=args.statistics_compute_steps)
+            optimizer = Shampoo(optim_groups, lr=learning_rate, momentum=betas[0],hyperparams=hyperparams)
 
         return optimizer
 
