@@ -218,6 +218,10 @@ class GPT(nn.Module):
             'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
             'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
             'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
+            # I made these tiny models up
+            'gpt-mini':     dict(n_layer=6, n_head=6, n_embd=192),    # 3.7M params
+            'gpt-micro':    dict(n_layer=4, n_head=4, n_embd=128),    # 0.8M params
+            'gpt-nano':     dict(n_layer=3, n_head=3, n_embd=48),     # 0.1M params
         }[model_type]
         print("forcing vocab_size=50257, block_size=1024, bias=True")
         config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints
