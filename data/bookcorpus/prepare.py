@@ -9,7 +9,7 @@ from datasets import load_dataset # huggingface datasets
 
 # number of workers in .map() call
 # good number to use is ~order number of cpu cores // 2
-num_proc = 16
+num_proc = 18
 
 # number of workers in load_dataset() call
 # best number might be different from num_proc above as it also depends on NW speed.
@@ -18,7 +18,7 @@ num_proc_load_dataset = num_proc
 
 if __name__ == '__main__':
     # takes 54GB in huggingface .cache dir, about 8M documents (8,013,769)
-    dataset = load_dataset("openwebtext", num_proc=num_proc_load_dataset,cache_dir='/work/jh160041a/g27034/.cache',data_dir='/work/jh160041a/g27034/dataset/openwebtext')
+    dataset = load_dataset("bookcorpus", num_proc=num_proc_load_dataset,cache_dir='/work/jh160041a/g27034/.cache',data_dir='/work/jh160041a/g27034/dataset/openwebtext')
 
     # owt by default only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(test_size=0.0005, seed=2357, shuffle=True)
