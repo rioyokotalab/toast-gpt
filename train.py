@@ -45,7 +45,7 @@ parser.add_argument('--always_save_checkpoint', action='store_true', default=Tru
 parser.add_argument('--init_from', default='scratch', choices=['scratch', 'resume', 'gpt2*'], type=str)
 
 # wandb logging
-parser.add_argument('--wandb_log', action='store_true', default=False)
+parser.add_argument('--wandb_log', action='store_false', default=True)
 parser.add_argument('--wandb_project', default='owt', type=str)
 parser.add_argument('--wandb_run_name', default='gpt2', type=str)
 
@@ -79,7 +79,10 @@ parser.add_argument('--statistics_compute_steps', default=100, type=int)
 parser.add_argument('--decay_lr', action='store_true', default=True)
 parser.add_argument('--warmup_iters', default=2000, type=int)
 parser.add_argument('--lr_decay_iters', default=600000, type=int)
-parser.add_argument('--min_lr', default=6e-5, type=float)
+parser.add_argument('--lr_ratio', default=1e-2, type=float)
+
+parser.add_argument('--base_batch_size_token', default=491520, type=int)
+parser.add_argument('--lr_batch_exp', default=1, type=float)
 
 # DDP settings
 parser.add_argument('--backend', default='nccl', type=str, choices=['nccl', 'gloo'])
@@ -91,7 +94,11 @@ parser.add_argument('--compile', action='store_true', default=False)
 
 # Parse the arguments
 args = parser.parse_args()
+args.n_gpus = torch.cuda.device_count()
+args.batch_size_token = args.batch_size * args.block_size * args.gradient_accumulation_steps * args.n_gpus
 
+args.lr = args.learning_rate * (args.batch_size_token / args.base_batch_size_token)**args.lr_batch_exp
+args.min_lr = args.lr * args.lr_ratio
 # Construct the config dictionary
 config = vars(args)
 
@@ -210,7 +217,7 @@ model.to(args.device)
 scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == 'float16'))
 
 # optimizer
-optimizer = model.configure_optimizers(args.optim, args.weight_decay, args.learning_rate, (args.beta1, args.beta2), args, device_type)
+optimizer = model.configure_optimizers(args.optim, args.weight_decay, args.lr, (args.beta1, args.beta2), args, device_type)
 if args.init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
