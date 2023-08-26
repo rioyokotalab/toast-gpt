@@ -37,7 +37,7 @@ parser = argparse.ArgumentParser(description='Training configuration for GPT-2 o
 
 # I/O
 parser.add_argument('--out_dir', default='out', type=str)
-parser.add_argument('--eval_interval', default=2000, type=int)
+parser.add_argument('--eval_interval', default=50, type=int)
 parser.add_argument('--log_interval', default=1, type=int)
 parser.add_argument('--eval_iters', default=200, type=int)
 parser.add_argument('--eval_only', action='store_true', default=False)
@@ -58,7 +58,7 @@ parser.add_argument('--block_size', default=1024, type=int)
 # model
 parser.add_argument('--n_layer', default=4, type=int)
 parser.add_argument('--n_head', default=4, type=int)
-parser.add_argument('--n_embd', default=128, type=int)
+parser.add_argument('--n_embd', default=512, type=int)
 parser.add_argument('--dropout', default=0.0, type=float)
 parser.add_argument('--bias', action='store_true', default=False)
 parser.add_argument('--optim', default='AdamW', type=str)
@@ -71,9 +71,11 @@ parser.add_argument('--beta1', default=0.9, type=float)
 parser.add_argument('--beta2', default=0.95, type=float)
 parser.add_argument('--grad_clip', default=1.0, type=float)
 # shampoo
-parser.add_argument('--damping', default=1.0e-6, type=float)
+parser.add_argument('--matrix_eps', default=1.0e-6, type=float)
+parser.add_argument('--start_preconditioning_step', default=25, type=int)
 parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
 parser.add_argument('--statistics_compute_steps', default=100, type=int)
+parser.add_argument('--shampoo_block_size', default=128, type=int)
 
 # learning rate decay settings
 parser.add_argument('--decay_lr', action='store_true', default=True)
