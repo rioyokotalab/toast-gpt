@@ -338,6 +338,8 @@ while True:
         X, Y = get_batch('train')
         # backward pass, with gradient scaling if training in fp16
         scaler.scale(loss).backward()
+        if 'K-FAC' in args.optim:
+            preconditioner.step()
     # clip the gradient
     if args.grad_clip != 0.0:
         scaler.unscale_(optimizer)

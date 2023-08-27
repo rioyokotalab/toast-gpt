@@ -383,7 +383,7 @@ class Shampoo(optim.Optimizer):
 
                                 if hps.gradient_value_clip != -1:
                                         rho = hps.gradient_value_clip
-                                        momentum_update.clamp(min=-rho, max=rho)
+                                        momentum_update = momentum_update.clamp(min=-rho, max=rho)
 
                                 # Final update
                                 p.data.add_(momentum_update, alpha=-lr)
