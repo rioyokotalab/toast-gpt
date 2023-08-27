@@ -7,19 +7,19 @@ from typing import cast
 import torch
 import torch.distributed as dist
 
-from kfac.distributed import Future
-from kfac.distributed import FutureType
-from kfac.distributed import get_rank
-from kfac.distributed import TorchDistributedCommunicator
-from kfac.enums import AllreduceMethod
-from kfac.layers.modules import ModuleHelper
+from optimizer.kfac.distributed import Future
+from optimizer.kfac.distributed import FutureType
+from optimizer.kfac.distributed import get_rank
+from optimizer.kfac.distributed import TorchDistributedCommunicator
+from optimizer.kfac.enums import AllreduceMethod
+from optimizer.kfac.layers.modules import ModuleHelper
 
 
 class KFACBaseLayer:
     """KFAC base layer implementation.
 
     There is a 1:1 mapping of KFAC layers to PyTorch modules in the model
-    being preconditioned with KFAC. The KFACBaseLayer provides methods
+    being preconditioned with optimizer.kfac. The KFACBaseLayer provides methods
     for the computations and communications required in the KFAC process.
     """
 

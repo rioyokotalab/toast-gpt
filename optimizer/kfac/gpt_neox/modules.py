@@ -11,7 +11,7 @@ else:  # pragma: <3.9 cover
 import torch
 import torch.distributed as dist
 
-from kfac.layers.modules import LinearModuleHelper
+from optimizer.kfac.layers.modules import LinearModuleHelper
 
 
 class GPTNeoXLinearModuleHelper(LinearModuleHelper):

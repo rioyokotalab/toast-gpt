@@ -10,21 +10,21 @@ from typing import cast
 
 import torch
 
-from kfac.base_preconditioner import BaseKFACPreconditioner
-from kfac.distributed import get_rank
-from kfac.distributed import get_world_size
-from kfac.distributed import TorchDistributedCommunicator
-from kfac.enums import AllreduceMethod
-from kfac.enums import AssignmentStrategy
-from kfac.enums import ComputeMethod
-from kfac.gpt_neox.assignment import GPTNeoXAssignment
-from kfac.gpt_neox.layer import GPTNeoXKFACEigenLayer
-from kfac.gpt_neox.modules import GPTNeoXLinearModuleHelper
-from kfac.layers.base import KFACBaseLayer
-from kfac.layers.register import any_match
-from kfac.layers.register import get_flattened_modules
-from kfac.layers.register import requires_grad
-from kfac.warnings import ExperimentalFeatureWarning
+from optimizer.kfac.base_preconditioner import BaseKFACPreconditioner
+from optimizer.kfac.distributed import get_rank
+from optimizer.kfac.distributed import get_world_size
+from optimizer.kfac.distributed import TorchDistributedCommunicator
+from optimizer.kfac.enums import AllreduceMethod
+from optimizer.kfac.enums import AssignmentStrategy
+from optimizer.kfac.enums import ComputeMethod
+from optimizer.kfac.gpt_neox.assignment import GPTNeoXAssignment
+from optimizer.kfac.gpt_neox.layer import GPTNeoXKFACEigenLayer
+from optimizer.kfac.gpt_neox.modules import GPTNeoXLinearModuleHelper
+from optimizer.kfac.layers.base import KFACBaseLayer
+from optimizer.kfac.layers.register import any_match
+from optimizer.kfac.layers.register import get_flattened_modules
+from optimizer.kfac.layers.register import requires_grad
+from optimizer.kfac.warnings import ExperimentalFeatureWarning
 
 try:
     from deepspeed.pipe import PipelineModule  # type: ignore
@@ -84,7 +84,7 @@ class GPTNeoXKFACPreconditioner(BaseKFACPreconditioner):
         """Init KFACPreconditioner.
 
         Args:
-            model (torch.nn.Module): model to precondition with KFAC.
+            model (torch.nn.Module): model to precondition with optimizer.kfac.
             factor_update_steps (Callable, int): steps between computing and
                 updating the running average of the Kronecker factors or
                 callable that takes the K-FAC step and returns the value.

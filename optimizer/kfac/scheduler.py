@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from kfac.base_preconditioner import BaseKFACPreconditioner
+from optimizer.kfac.base_preconditioner import BaseKFACPreconditioner
 
 
 class LambdaParamScheduler:

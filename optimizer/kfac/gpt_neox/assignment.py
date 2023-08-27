@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import torch.distributed as dist
 
-from kfac.assignment import WorkAssignment
-from kfac.gpt_neox.mpu import get_group_with_rank
+from optimizer.kfac.assignment import WorkAssignment
+from optimizer.kfac.gpt_neox.mpu import get_group_with_rank
 
 try:
     from deepspeed.runtime.pipe.topology import (  # type: ignore

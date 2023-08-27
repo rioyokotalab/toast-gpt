@@ -23,7 +23,7 @@ def exp_decay_factor_averaging(
         callable that takes an integer value for the current K-FAC step and
         returns a float value for the running average weight. This callable
         can be passed as the value of `factor_decay` to instances of
-        `kfac.base_preconditioner.BaseKFACPreconditioner`. Note: that if the
+        `optimizer.kfac.base_preconditioner.BaseKFACPreconditioner`. Note: that if the
         current step is 0, 1 / k is undefined so k = 1 will be used,
         and if the current step is negative, a ValueError will be raised.
 

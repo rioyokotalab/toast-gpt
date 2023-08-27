@@ -6,10 +6,10 @@ from typing import Any
 
 import torch
 
-from kfac.layers.base import KFACBaseLayer
-from kfac.layers.modules import Conv2dModuleHelper
-from kfac.layers.modules import LinearModuleHelper
-from kfac.layers.modules import ModuleHelper
+from optimizer.kfac.layers.base import KFACBaseLayer
+from optimizer.kfac.layers.modules import Conv2dModuleHelper
+from optimizer.kfac.layers.modules import LinearModuleHelper
+from optimizer.kfac.layers.modules import ModuleHelper
 
 KNOWN_MODULES = {'linear', 'conv2d'}
 LINEAR_TYPES: tuple[type[torch.nn.Module], ...] = (torch.nn.Linear,)

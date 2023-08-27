@@ -10,10 +10,10 @@ from typing import Callable
 
 import torch
 
-from kfac.assignment import WorkAssignment
-from kfac.distributed import get_rank
-from kfac.distributed import TorchDistributedCommunicator
-from kfac.layers.base import KFACBaseLayer
+from optimizer.kfac.assignment import WorkAssignment
+from optimizer.kfac.distributed import get_rank
+from optimizer.kfac.distributed import TorchDistributedCommunicator
+from optimizer.kfac.layers.base import KFACBaseLayer
 
 logger = logging.getLogger(__name__)
 
@@ -398,7 +398,7 @@ class BaseKFACPreconditioner:
 
         # Need to flush buffered communication operations in case user
         # calls this method at a strange time (e.g., in the middle of
-        # KFAC.step())
+        # optimizer.kfac.step())
         self._tdc.flush_allreduce_buckets()
         for _, layer in self._layers.values():
             layer_sizes = layer.memory_usage()

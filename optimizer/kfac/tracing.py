@@ -53,9 +53,9 @@ def log_trace(
 ) -> None:
     """Log function execution times recorded with @trace.
 
-    To trace function execution times, use the @kfac.utils.trace()
+    To trace function execution times, use the @optimizer.kfac.utils.trace()
     decorator on all functions to be traced. Then to get the average
-    execution times, call kfac.utils.print_trace().
+    execution times, call optimizer.kfac.utils.print_trace().
 
     Args:
         average (bool): if true, average the times otherwise print sum of

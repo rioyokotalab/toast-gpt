@@ -10,19 +10,19 @@ from typing import List
 import torch
 import torch.distributed as dist
 
-from kfac.assignment import KAISAAssignment
-from kfac.base_preconditioner import BaseKFACPreconditioner
-from kfac.distributed import get_rank
-from kfac.distributed import get_world_size
-from kfac.distributed import TorchDistributedCommunicator
-from kfac.enums import AllreduceMethod
-from kfac.enums import AssignmentStrategy
-from kfac.enums import ComputeMethod
-from kfac.enums import DistributedStrategy
-from kfac.layers.base import KFACBaseLayer
-from kfac.layers.eigen import KFACEigenLayer
-from kfac.layers.inverse import KFACInverseLayer
-from kfac.layers.register import register_modules
+from optimizer.kfac.assignment import KAISAAssignment
+from optimizer.kfac.base_preconditioner import BaseKFACPreconditioner
+from optimizer.kfac.distributed import get_rank
+from optimizer.kfac.distributed import get_world_size
+from optimizer.kfac.distributed import TorchDistributedCommunicator
+from optimizer.kfac.enums import AllreduceMethod
+from optimizer.kfac.enums import AssignmentStrategy
+from optimizer.kfac.enums import ComputeMethod
+from optimizer.kfac.enums import DistributedStrategy
+from optimizer.kfac.layers.base import KFACBaseLayer
+from optimizer.kfac.layers.eigen import KFACEigenLayer
+from optimizer.kfac.layers.inverse import KFACInverseLayer
+from optimizer.kfac.layers.register import register_modules
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class KFACPreconditioner(BaseKFACPreconditioner):
     Example:
         >>> model = torch.nn.parallel.DistributedDataParallel(model, ...)
         >>> optimizer = optim.SGD(model.parameters(), ...)
-        >>> preconditioner = kfac.preconditioner.KFACPreconditioner(model, ...)
+        >>> preconditioner = optimizer.kfac.preconditioner.KFACPreconditioner(model, ...)
         >>>
         >>> for i, (data, target) in enumerate(train_loader):
         >>>     optimizer.zero_grad()
@@ -88,7 +88,7 @@ class KFACPreconditioner(BaseKFACPreconditioner):
         """Init KFACPreconditioner.
 
         Args:
-            model (torch.nn.Module): model to precondition with KFAC.
+            model (torch.nn.Module): model to precondition with optimizer.kfac.
             factor_update_steps (Callable, int): steps between computing and
                 updating the running average of the Kronecker factors or
                 callable that takes the K-FAC step and returns the value.

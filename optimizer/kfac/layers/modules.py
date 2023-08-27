@@ -6,8 +6,8 @@ from typing import List
 
 import torch
 
-from kfac.layers.utils import append_bias_ones
-from kfac.layers.utils import get_cov
+from optimizer.kfac.layers.utils import append_bias_ones
+from optimizer.kfac.layers.utils import get_cov
 
 
 class ModuleHelper:

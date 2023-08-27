@@ -11,12 +11,12 @@ else:  # pragma: <3.9 cover
 
 import torch
 
-from kfac.distributed import get_rank
-from kfac.distributed import get_world_size
-from kfac.gpt_neox.mpu import gather_from_model_parallel_region
-from kfac.gpt_neox.mpu import split_tensor_along_dim
-from kfac.layers.eigen import KFACEigenLayer
-from kfac.layers.modules import ModuleHelper
+from optimizer.kfac.distributed import get_rank
+from optimizer.kfac.distributed import get_world_size
+from optimizer.kfac.gpt_neox.mpu import gather_from_model_parallel_region
+from optimizer.kfac.gpt_neox.mpu import split_tensor_along_dim
+from optimizer.kfac.layers.eigen import KFACEigenLayer
+from optimizer.kfac.layers.modules import ModuleHelper
 
 
 class GPTNeoXKFACEigenLayer(KFACEigenLayer):
