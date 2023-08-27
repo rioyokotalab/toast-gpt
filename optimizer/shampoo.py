@@ -64,6 +64,8 @@ class ShampooHyperParams:
         graft_type: int = None
         # Nesterov momentum
         nesterov: bool = True
+        # Clipping
+        gradient_value_clip: float = -1
 
 
 class Graft:
@@ -378,6 +380,10 @@ class Shampoo(optim.Optimizer):
 
                                 if hps.nesterov:
                                         momentum_update.mul_(group['momentum']).add_(wd_update)
+
+                                if hps.gradient_value_clip != -1:
+                                        rho = hps.gradient_value_clip
+                                        momentum_update.clamp(min=-rho, max=rho)
 
                                 # Final update
                                 p.data.add_(momentum_update, alpha=-lr)

@@ -296,7 +296,8 @@ class GPT(nn.Module):
                                             start_preconditioning_step = args.start_preconditioning_step,
                                             preconditioning_compute_steps = args.preconditioning_compute_steps,
                                             statistics_compute_steps = args.statistics_compute_steps,
-                                            block_size = args.shampoo_block_size)
+                                            block_size = args.shampoo_block_size,
+                                            gradient_value_clip=args.gradient_value_clip)
             optimizer = Shampoo(optim_groups, lr=learning_rate, momentum=betas[0],hyperparams=hyperparams)
 
         return optimizer

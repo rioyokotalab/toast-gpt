@@ -50,7 +50,7 @@ parser.add_argument('--wandb_project', default='owt', type=str)
 parser.add_argument('--wandb_run_name', default='gpt2', type=str)
 
 # data
-parser.add_argument('--dataset', default='shakespeare', type=str)
+parser.add_argument('--dataset', default='openwebtext', type=str)
 parser.add_argument('--gradient_accumulation_steps', default=5*8, type=int)
 parser.add_argument('--batch_size', default=12, type=int)
 parser.add_argument('--block_size', default=1024, type=int)
@@ -76,6 +76,7 @@ parser.add_argument('--start_preconditioning_step', default=25, type=int)
 parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
 parser.add_argument('--statistics_compute_steps', default=100, type=int)
 parser.add_argument('--shampoo_block_size', default=128, type=int)
+parser.add_argument('--gradient_value_clip', default=-1, type=float)
 
 # learning rate decay settings
 parser.add_argument('--decay_lr', action='store_true', default=True)
@@ -353,6 +354,8 @@ while True:
 
     # termination conditions
     if iter_num > args.max_iters:
+        break
+    if math.isnan(losses['train']):
         break
 
 if ddp:
