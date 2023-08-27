@@ -287,7 +287,9 @@ class GPT(nn.Module):
         use_fused = fused_available and device_type == 'cuda'
         extra_args = dict(fused=True) if use_fused else dict()
 
-        if optimizer_name == 'AdamW':
+        if optimizer_name == 'SGD' or optimizer_name == 'K-FAC':
+            optimizer = torch.optim.SGD(optim_groups, lr=learning_rate, **extra_args)
+        if optimizer_name == 'AdamW' or optimizer_name == 'AdamW-K-FAC':
             optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
             print(f"using fused AdamW: {use_fused}")
         if optimizer_name == 'Shampoo':

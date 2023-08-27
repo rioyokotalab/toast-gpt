@@ -32,6 +32,7 @@ from model import GPTConfig, GPT
 import argparse
 import torch
 
+from optimizer.kfac.preconditioner import KFACPreconditioner
 # Initialize argument parser
 parser = argparse.ArgumentParser(description='Training configuration for GPT-2 on OpenWebText.')
 
@@ -77,6 +78,8 @@ parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
 parser.add_argument('--statistics_compute_steps', default=100, type=int)
 parser.add_argument('--shampoo_block_size', default=128, type=int)
 parser.add_argument('--gradient_value_clip', default=-1, type=float)
+
+parser.add_argument('--kl_clip', default=1e-3, type=float)
 
 # learning rate decay settings
 parser.add_argument('--decay_lr', action='store_true', default=True)
@@ -221,6 +224,14 @@ scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == 'float16'))
 
 # optimizer
 optimizer = model.configure_optimizers(args.optim, args.weight_decay, args.lr, (args.beta1, args.beta2), args, device_type)
+if 'K-FAC' in args.optim:
+    preconditioner = KFACPreconditioner(model,
+                                        factor_update_steps=args.preconditioning_compute_steps,
+                                        inv_update_steps=args.statistics_compute_steps,
+                                        damping=args.matrix_eps,
+                                        factor_decay=args.beta2,
+                                        kl_clip=args.kl_clip,
+                                        accumulation_steps=args.gradient_accumulation_steps)
 if args.init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
