@@ -92,7 +92,7 @@ parser.add_argument('--lr_batch_exp', default=1, type=float)
 
 # DDP settings
 parser.add_argument('--backend', default='nccl', type=str, choices=['nccl', 'gloo'])
-
+parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD'])
 # system
 parser.add_argument('--device', default='cuda', type=str, choices=['cpu', 'cuda', 'mps'])
 parser.add_argument('--dtype', default='bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16', type=str, choices=['float32', 'bfloat16', 'float16'])

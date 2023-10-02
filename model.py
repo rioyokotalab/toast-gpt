@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from optimizer.shampoo import ShampooHyperParams, Shampoo
+from optimizer.shampoo import ShampooHyperParams, Shampoo, LayerwiseGrafting
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -293,13 +293,20 @@ class GPT(nn.Module):
             optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
             print(f"using fused AdamW: {use_fused}")
         if optimizer_name == 'Shampoo':
+            if args.grafting == 'AdaGrad':
+                grafting = LayerwiseGrafting.ADAGRAD
+            elif args.grafting == 'SGD':
+                grafting = LayerwiseGrafting.SGD
+            elif args.grafting == 'None':
+                grafting = LayerwiseGrafting.NONE
             hyperparams = ShampooHyperParams(beta2 = betas[1],
                                             matrix_eps = args.matrix_eps, 
                                             start_preconditioning_step = args.start_preconditioning_step,
                                             preconditioning_compute_steps = args.preconditioning_compute_steps,
                                             statistics_compute_steps = args.statistics_compute_steps,
                                             block_size = args.shampoo_block_size,
-                                            gradient_value_clip=args.gradient_value_clip)
+                                            gradient_value_clip=args.gradient_value_clip,
+                                            graft_type=grafting)
             optimizer = Shampoo(optim_groups, lr=learning_rate, momentum=betas[0],hyperparams=hyperparams)
 
         return optimizer
