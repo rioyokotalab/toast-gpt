@@ -92,7 +92,7 @@ parser.add_argument('--lr_batch_exp', default=1, type=float)
 
 # DDP settings
 parser.add_argument('--backend', default='nccl', type=str, choices=['nccl', 'gloo'])
-parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD'])
+parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD', 'AdaGrad'])
 # system
 parser.add_argument('--device', default='cuda', type=str, choices=['cpu', 'cuda', 'mps'])
 parser.add_argument('--dtype', default='bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16', type=str, choices=['float32', 'bfloat16', 'float16'])
@@ -319,6 +319,8 @@ while True:
                 }
                 print(f"saving checkpoint to {args.out_dir}")
                 torch.save(checkpoint, os.path.join(args.out_dir, 'ckpt.pt'))
+        if math.isnan(losses['train']):
+            break
     if iter_num == 0 and args.eval_only:
         break
 
@@ -367,8 +369,6 @@ while True:
 
     # termination conditions
     if iter_num > args.max_iters:
-        break
-    if math.isnan(losses['train']):
         break
 
 if ddp:
