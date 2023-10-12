@@ -1,0 +1,47 @@
+program: train.py
+method: grid
+metric:
+  name: train/loss
+  goal: minimize
+parameters:
+  log_interval:
+    value: 1
+  dataset:
+    value: 'openwebtext'
+  gradient_accumulation_steps:
+    value: 8
+  batch_size:
+    value: 12
+  block_size:
+    value: 1024
+  n_layer:
+    value: 12
+  n_head:
+    value: 12
+  n_embd:
+    value: 768
+  learning_rate:
+    values: [1e-2,3e-2,3e-3]
+  beta1:
+    value: 0.9
+  beta2:
+    value: 0.85
+  max_iters:
+    value: 10000
+  lr_decay_iters:
+    value: 10000
+  eval_iters:
+    value: 20
+  eval_interval:
+    value: 20
+  warmup_iters:
+    value: 2000
+  optim:
+    value: 'AdamW'
+command:
+  - ${env}
+  - torchrun 
+  - --standalone 
+  - --nproc_per_node=4
+  - ${program}
+  - ${args_no_boolean_flags}

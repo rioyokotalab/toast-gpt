@@ -66,6 +66,8 @@ class ShampooHyperParams:
         nesterov: bool = True
         # Clipping
         gradient_value_clip: float = -1
+        # Nesterov momentum
+        reuse_matrix: bool = False
 
 
 class Graft:
@@ -265,8 +267,12 @@ class Preconditioner:
                 exp = self.exponent_for_preconditioner()
                 eps = self._hps.matrix_eps
                 for i, stat in enumerate(self.statistics):
+                        if self._hps.reuse_matrix:
+                               initial_matrix = self.preconditioners[i]
+                        else:
+                               initial_matrix = None
                         self.preconditioners[i] = ComputePower(
-                                        stat, exp, ridge_epsilon=eps)
+                                        stat, exp, ridge_epsilon=eps, initial_matrix = initial_matrix)
 
         def preconditioned_grad(self, grad):
                 """Precondition the gradient.
@@ -453,7 +459,8 @@ def MatPower(mat_m, p):
 def ComputePower(mat_g, p,
                                                                  iter_count=100,
                                                                  error_tolerance=1e-6,
-                                                                 ridge_epsilon=1e-6):
+                                                                 ridge_epsilon=1e-6,
+                                                                 initial_matrix = None):
         """A method to compute G^{-1/p} using a coupled Newton iteration.
 
         See for example equation 3.2 on page 9 of:

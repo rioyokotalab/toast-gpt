@@ -47,6 +47,7 @@ parser.add_argument('--init_from', default='scratch', choices=['scratch', 'resum
 
 # wandb logging
 parser.add_argument('--wandb_log', action='store_false', default=True)
+parser.add_argument('--wandb_entity', default='project-toast', type=str)
 parser.add_argument('--wandb_project', default='owt', type=str)
 parser.add_argument('--wandb_run_name', default='gpt2', type=str)
 
@@ -279,7 +280,7 @@ def get_lr(it):
 # logging
 if args.wandb_log and master_process:
     import wandb
-    wandb.init(config=config)
+    wandb.init(config=config, entity = args.wandb_entity)
 
 # training loop
 X, Y = get_batch('train') # fetch the very first batch
