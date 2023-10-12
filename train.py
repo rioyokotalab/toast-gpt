@@ -283,7 +283,7 @@ def get_lr(it):
 # logging
 if args.wandb_log and master_process:
     import wandb
-    wandb.init(config=config, entity = args.wandb_entity)
+    wandb.init(config=config)
 
 # training loop
 X, Y = get_batch('train') # fetch the very first batch
