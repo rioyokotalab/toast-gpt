@@ -33,6 +33,9 @@ import argparse
 import torch
 
 from optimizer.kfac.preconditioner import KFACPreconditioner
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
+
 # Initialize argument parser
 parser = argparse.ArgumentParser(description='Training configuration for GPT-2 on OpenWebText.')
 
