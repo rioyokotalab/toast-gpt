@@ -454,13 +454,20 @@ def MatPower(mat_m, p):
                 mat_m = torch.matmul(mat_m, mat_m)
         return power
 
+@torch.no_grad()
+def matrix_neg_power(mat_g, p):
+    U, S, V = torch.svd(mat_g)
+    S_neg_power = torch.diag(S ** (-1 / p))
+    return U @ S_neg_power @ V.t()
+
 
 @torch.no_grad()
 def ComputePower(mat_g, p,
                                                                  iter_count=100,
                                                                  error_tolerance=1e-6,
                                                                  ridge_epsilon=1e-6,
-                                                                 initial_matrix = None):
+                                                                 initial_matrix = None,
+                                                                 recursive = False):
         """A method to compute G^{-1/p} using a coupled Newton iteration.
 
         See for example equation 3.2 on page 9 of:
@@ -480,6 +487,8 @@ def ComputePower(mat_g, p,
         Returns:
                 (mat_g + rI)^{-1/p} (r = ridge_epsilon * max_eigenvalue of mat_g).
         """
+        tf32_flag = torch.backends.cuda.matmul.allow_tf32
+        mat_g_raw = torch.clone(mat_g)
         shape = list(mat_g.shape)
         if len(shape) == 1:
                 return torch.pow(mat_g + ridge_epsilon, -1/p)
@@ -511,13 +520,30 @@ def ComputePower(mat_g, p,
         while error > error_tolerance and count < iter_count:
                 tmp_mat_m = (1 - alpha) * identity + alpha * mat_m
                 new_mat_root = torch.matmul(mat_root, tmp_mat_m)
-                mat_m = torch.matmul(MatPower(tmp_mat_m, p), mat_m)
-                new_error = torch.max(torch.abs(mat_m - identity))
-                if new_error > error * 1.2:
-                        break
+                new_mat_m = torch.matmul(MatPower(tmp_mat_m, p), mat_m)
+                new_error = torch.max(torch.abs(new_mat_m - identity))
+                if new_error > error:
+                        if torch.backends.cuda.matmul.allow_tf32:
+                                torch.backends.cuda.matmul.allow_tf32 = False
+                                continue
+                        if new_error > error * 1.2:
+                                if not recursive:
+                                        mat_root = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, None, True)
+                                else:
+                                        mat_root = matrix_neg_power(mat_g_raw, p)
+                                break
+                if torch.isclose(new_error, error):
+                        torch.backends.cuda.matmul.allow_tf32 = False
+                mat_m = new_mat_m
                 mat_root = new_mat_root
                 error = new_error
                 count += 1
+        # If you want to check the correctness:
+        # if random.randint(0, 1000) == 0:
+        #         ground_truth = matrix_neg_power(mat_g_raw, p)
+        #         error_gt = (mat_root - ground_truth).norm() / ground_truth.norm()
+        #         print(f'ComputePower: count={count}, error={error:.7f}, gt_error={error_gt:.7f}')
+        torch.backends.cuda.matmul.allow_tf32 = tf32_flag
         return mat_root
 
 
