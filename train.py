@@ -113,12 +113,13 @@ args.min_lr = args.lr * args.lr_ratio
 config = vars(args)
 
 # various inits, derived attributes, I/O setup
-ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
+ddp = int(os.environ.get('OMPI_COMM_WORLD_RANK', -1)) != -1 # is this a ddp run?
 if ddp:
-    init_process_group(backend=args.backend)
-    ddp_rank = int(os.environ['RANK'])
-    ddp_local_rank = int(os.environ['LOCAL_RANK'])
-    ddp_world_size = int(os.environ['WORLD_SIZE'])
+    ddp_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+    ngpus_per_node = torch.cuda.device_count()
+    ddp_local_rank = ddp_rank % ngpus_per_node
+    ddp_world_size = int(os.environ.get('OMPI_COMM_WORLD_SIZE', '1'))
+    init_process_group(backend=args.backend, world_size=ddp_world_size, rank=ddp_rank)
     args.device = f'cuda:{ddp_local_rank}'
     torch.cuda.set_device(args.device)
     master_process = ddp_rank == 0 # this process will do logging, checkpointing etc.
@@ -132,6 +133,10 @@ else:
     master_process = True
     seed_offset = 0
     ddp_world_size = 1
+    ddp_rank = 0
+    ddp_local_rank = 0
+print(f"ddp_rank: {ddp_rank}")
+print(f"ddp_local_rank: {ddp_local_rank}")
 tokens_per_iter = args.gradient_accumulation_steps * ddp_world_size * args.batch_size * args.block_size
 print(f"tokens per iteration will be: {tokens_per_iter:,}")
 
