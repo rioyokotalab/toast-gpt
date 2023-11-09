@@ -315,19 +315,19 @@ while True:
                 "lr": lr,
                 "mfu": running_mfu*100, # convert to percentage
             })
-        if losses['val'] < best_val_loss or args.always_save_checkpoint:
-            best_val_loss = losses['val']
-            if iter_num > 0:
-                checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'model_args': model_args,
-                    'iter_num': iter_num,
-                    'best_val_loss': best_val_loss,
-                    'config': config,
-                }
-                print(f"saving checkpoint to {args.out_dir}")
-                torch.save(checkpoint, os.path.join(args.out_dir, 'ckpt.pt'))
+        # if losses['val'] < best_val_loss or args.always_save_checkpoint:
+        #     best_val_loss = losses['val']
+        #     if iter_num > 0:
+        #         checkpoint = {
+        #             'model': raw_model.state_dict(),
+        #             'optimizer': optimizer.state_dict(),
+        #             'model_args': model_args,
+        #             'iter_num': iter_num,
+        #             'best_val_loss': best_val_loss,
+        #             'config': config,
+        #         }
+        #         print(f"saving checkpoint to {args.out_dir}")
+        #         torch.save(checkpoint, os.path.join(args.out_dir, 'ckpt.pt'))
         if math.isnan(losses['train']):
             break
     if iter_num == 0 and args.eval_only:
