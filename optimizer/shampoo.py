@@ -421,7 +421,6 @@ class Shampoo(optim.Optimizer):
                         'graft_norm' : graft_norm_sum**0.5
                 }
 
-
 @torch.no_grad()
 def PowerIter(mat_g, error_tolerance=1e-6, num_iters=100):
         """Power iteration.

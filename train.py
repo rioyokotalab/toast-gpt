@@ -41,7 +41,7 @@ parser = argparse.ArgumentParser(description='Training configuration for GPT-2 o
 
 # I/O
 parser.add_argument('--out_dir', default='out', type=str)
-parser.add_argument('--eval_interval', default=50, type=int)
+parser.add_argument('--eval_interval', default=10, type=int)
 parser.add_argument('--log_interval', default=1, type=int)
 parser.add_argument('--eval_iters', default=200, type=int)
 parser.add_argument('--eval_only', action='store_true', default=False)
@@ -318,7 +318,8 @@ while True:
                 "lr": lr,
                 "mfu": running_mfu*100, # convert to percentage
             }
-            if args.optizer_name == 'Shampoo':
+            if args.optim == 'Shampoo':
+                if hasattr(optimizer, 'norm_dict'):
                     log_dict['Norm/'] = optimizer.norm_dict
             wandb.log(log_dict)
         # if losses['val'] < best_val_loss or args.always_save_checkpoint:
