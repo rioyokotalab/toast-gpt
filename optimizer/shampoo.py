@@ -68,7 +68,10 @@ class ShampooHyperParams:
         gradient_value_clip: float = -1
         # Nesterov momentum
         reuse_matrix: bool = False
-
+        # early curvature warmup
+        early_phase_iters: float = 0
+        early_statistics_compute_steps: int = 1
+        early_preconditioning_compute_steps: int = 1
 
 class Graft:
         """Base class to perform grafting onto Shampoo. This class does no grafting.
@@ -335,11 +338,17 @@ class Shampoo(optim.Optimizer):
 
         def step(self, closure=None):
                 hps = self.hps
+                original_grad_norm_sum = 0
+                shampoo_norm_sum = 0
+                graft_norm_sum = 0
+
                 for group in self.param_groups:
                         lr = group['lr']
                         for p in group['params']:
                                 if p.grad is None: continue
                                 grad = p.grad.data
+                                original_grad_norm = float(torch.norm(grad))
+
                                 if grad.is_sparse:
                                         raise RuntimeError('Shampoo does not support sparse yet')
                                 state = self.state[p]
@@ -352,10 +361,16 @@ class Shampoo(optim.Optimizer):
 
                                 # Gather statistics, compute preconditioners
                                 graft.add_statistics(grad)
-                                if state[STEP] % hps.statistics_compute_steps == 0:
-                                        preconditioner.add_statistics(grad)
-                                if state[STEP] % hps.preconditioning_compute_steps == 0:
-                                        preconditioner.compute_preconditioners()
+                                if state[STEP] >= hps.early_phase_iters:
+                                        if state[STEP] % hps.statistics_compute_steps == 0:
+                                                preconditioner.add_statistics(grad)
+                                        if state[STEP] % hps.preconditioning_compute_steps == 0:
+                                                preconditioner.compute_preconditioners()
+                                else:
+                                        if state[STEP] % hps.early_statistics_compute_steps == 0:
+                                                preconditioner.add_statistics(grad)
+                                        if state[STEP] % hps.early_preconditioning_compute_steps == 0:
+                                                preconditioner.compute_preconditioners()
 
                                 # Precondition gradients
                                 graft_grad = graft.precondition_gradient(grad)
@@ -367,6 +382,11 @@ class Shampoo(optim.Optimizer):
                                 graft_norm = torch.norm(graft_grad)
                                 shampoo_norm = torch.norm(shampoo_grad)
                                 shampoo_grad.mul_(graft_norm / (shampoo_norm + 1e-16))
+
+                                # total norm
+                                original_grad_norm_sum += float(original_grad_norm**2)
+                                shampoo_norm_sum += float(shampoo_norm**2)
+                                graft_norm_sum += float(graft_norm**2)
 
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
@@ -394,7 +414,12 @@ class Shampoo(optim.Optimizer):
                                 # Final update
                                 p.data.add_(momentum_update, alpha=-lr)
 
-
+                self.norm_dict = {
+                        'original_grad_norm' : original_grad_norm_sum**0.5,
+                        'shampoo_norm' : shampoo_norm_sum**0.5,
+                        'grad_norm_ratio' : (shampoo_norm_sum**0.5) / (original_grad_norm_sum**0.5),
+                        'graft_norm' : graft_norm_sum**0.5
+                }
 
 
 @torch.no_grad()
@@ -498,7 +523,7 @@ def ComputePower(mat_g, p,
         alpha = -1.0/p
         max_ev, _, _ = PowerIter(mat_g)
         ridge_epsilon *= max_ev
-        mat_g += ridge_epsilon * identity
+        mat_g = mat_g + ridge_epsilon * identity
         z = (1 + p) / (2 * torch.norm(mat_g))
         # The best value for z is
         # (1 + p) * (c_max^{1/p} - c_min^{1/p}) /

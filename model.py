@@ -306,7 +306,10 @@ class GPT(nn.Module):
                                             statistics_compute_steps = args.statistics_compute_steps,
                                             block_size = args.shampoo_block_size,
                                             gradient_value_clip=args.gradient_value_clip,
-                                            graft_type=grafting)
+                                            graft_type=grafting,
+                                            early_phase_iters = args.max_iters * args.early_phase_ratio,
+                                            early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
+                                            early_statistics_compute_steps = args.early_statistics_compute_steps)
             optimizer = Shampoo(optim_groups, lr=learning_rate, momentum=betas[0],hyperparams=hyperparams)
 
         return optimizer

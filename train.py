@@ -82,6 +82,9 @@ parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
 parser.add_argument('--statistics_compute_steps', default=100, type=int)
 parser.add_argument('--shampoo_block_size', default=128, type=int)
 parser.add_argument('--gradient_value_clip', default=-1, type=float)
+parser.add_argument('--early_phase_ratio', default=0, type=float)
+parser.add_argument('--early_preconditioning_compute_steps', default=10, type=int)
+parser.add_argument('--early_statistics_compute_steps', default=100, type=int)
 
 parser.add_argument('--kl_clip', default=1e-3, type=float)
 
@@ -308,13 +311,16 @@ while True:
         losses = estimate_loss()
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if args.wandb_log:
-            wandb.log({
+            log_dict = {
                 "iter": iter_num,
                 "train/loss": losses['train'],
                 "val/loss": losses['val'],
                 "lr": lr,
                 "mfu": running_mfu*100, # convert to percentage
-            })
+            }
+            if args.optizer_name == 'Shampoo':
+                    log_dict['Norm/'] = optimizer.norm_dict
+            wandb.log(log_dict)
         # if losses['val'] < best_val_loss or args.always_save_checkpoint:
         #     best_val_loss = losses['val']
         #     if iter_num > 0:
