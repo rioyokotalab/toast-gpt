@@ -41,15 +41,21 @@ parameters:
   gradient_value_clip:
     value: -1
   optim:
-    values: ['Shampoo', 'AdamW']
+    values: ['Shampoo']
   weight_decay:
-    values: [1e-1, 0]
+    values: [1e-1]
   grafting:
     value: 'AdaGrad'
   start_preconditioning_step:
     value: 25
   statistics_compute_steps:
     value: 10
+  early_statistics_compute_steps:
+    value: 10
+  preconditioning_compute_steps:
+    values: [30, 100, 300, 1000]
+  early_preconditioning_compute_steps:
+    values: [10, 30, 100, 300, 1000]
 command:
   - ${env}
   - mpirun

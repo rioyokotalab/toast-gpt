@@ -41,7 +41,7 @@ parser = argparse.ArgumentParser(description='Training configuration for GPT-2 o
 
 # I/O
 parser.add_argument('--out_dir', default='out', type=str)
-parser.add_argument('--eval_interval', default=50, type=int)
+parser.add_argument('--eval_interval', default=10, type=int)
 parser.add_argument('--log_interval', default=1, type=int)
 parser.add_argument('--eval_iters', default=200, type=int)
 parser.add_argument('--eval_only', action='store_true', default=False)
@@ -82,6 +82,9 @@ parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
 parser.add_argument('--statistics_compute_steps', default=100, type=int)
 parser.add_argument('--shampoo_block_size', default=128, type=int)
 parser.add_argument('--gradient_value_clip', default=-1, type=float)
+parser.add_argument('--early_phase_ratio', default=0, type=float)
+parser.add_argument('--early_preconditioning_compute_steps', default=10, type=int)
+parser.add_argument('--early_statistics_compute_steps', default=100, type=int)
 
 parser.add_argument('--kl_clip', default=1e-3, type=float)
 
@@ -308,13 +311,17 @@ while True:
         losses = estimate_loss()
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if args.wandb_log:
-            wandb.log({
+            log_dict = {
                 "iter": iter_num,
                 "train/loss": losses['train'],
                 "val/loss": losses['val'],
                 "lr": lr,
                 "mfu": running_mfu*100, # convert to percentage
-            })
+            }
+            if args.optim == 'Shampoo':
+                if hasattr(optimizer, 'norm_dict'):
+                    log_dict['Norm/'] = optimizer.norm_dict
+            wandb.log(log_dict)
         # if losses['val'] < best_val_loss or args.always_save_checkpoint:
         #     best_val_loss = losses['val']
         #     if iter_num > 0:
