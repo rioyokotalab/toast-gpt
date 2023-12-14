@@ -348,7 +348,7 @@ class Shampoo(optim.Optimizer):
                 self.interval_layer_dict = {}
                 self.update_times_layer_dict = {}
                 for mname in param_names.values():
-                       if 'bn' not in mname and 'bias' not in mname and 'norm' not in mname:
+                       if 'bn' not in mname and 'ln' not in mname and 'bias' not in mname and 'norm' not in mname:
                         self.update_times_layer_dict[mname] = 0
                 super(Shampoo, self).__init__(params, defaults)
 
@@ -402,14 +402,14 @@ class Shampoo(optim.Optimizer):
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
                                                 preconditioner.compute_preconditioners()
-                                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                         self.update_times_layer_dict[self.param_names[p]] += 1
                                 else:
                                         if state[STEP] % hps.early_statistics_compute_steps == 0:
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % hps.early_preconditioning_compute_steps == 0:
                                                 preconditioner.compute_preconditioners()
-                                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                         self.update_times_layer_dict[self.param_names[p]] += 1
 
                                 # Precondition gradients
@@ -430,13 +430,13 @@ class Shampoo(optim.Optimizer):
 
                                 # For Cosine Similarity
                                 if shampoo_prev_grad is not None:
-                                        if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                        if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                 cos = torch.nn.CosineSimilarity(dim=0)
                                                 cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
                                                 self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
                                                 self.max_eigen_layer_dict[self.param_names[p]] = preconditioner.max_eigen_dict
                                 
-                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                         if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
                                                 interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
                                                 interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
