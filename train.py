@@ -291,6 +291,15 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
     return args.min_lr + coeff * (args.learning_rate - args.min_lr)
 
+def create_max_eigen_list(eig_dict):
+    eig_list = []
+    for dic1 in eig_dict.values():
+        for dic2 in dic1.values():
+            for eig in dic2.values():
+                if eig is not None:
+                    eig_list.append(eig)
+    return eig_list
+
 # logging
 if args.wandb_log and master_process:
     import wandb
@@ -324,6 +333,18 @@ while True:
             if args.optim == 'Shampoo':
                 if hasattr(optimizer, 'norm_dict'):
                     log_dict['Norm/'] = optimizer.norm_dict
+                    log_dict['Cosine/'] = optimizer.cosine_dict
+                    log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
+                    log_dict['MaxEigenLayer/'] = optimizer.max_eigen_layer_dict
+                    log_dict['IntervalLayer/'] = optimizer.interval_layer_dict
+                    log_dict['UpdateLayer/'] = optimizer.update_times_layer_dict
+                    max_eigen_list = create_max_eigen_list(optimizer.max_eigen_layer_dict)
+                    if len(max_eigen_list) > 0:
+                        log_dict['MaxEigen/'] = {
+                        'Max' : max(max_eigen_list),
+                        'Min' : min(max_eigen_list),
+                        'Mean' : sum(max_eigen_list) / len(max_eigen_list)
+                        }
             wandb.log(log_dict)
         # if losses['val'] < best_val_loss or args.always_save_checkpoint:
         #     best_val_loss = losses['val']
