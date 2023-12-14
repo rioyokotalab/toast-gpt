@@ -7,25 +7,25 @@ parameters:
   log_interval:
     value: 1
   dataset:
-    values: ['shakespeare', 'bookcorpus']
+    values: ['openwebtext']
   gradient_accumulation_steps:
     value: 8
   batch_size:
     value: 12
   block_size:
-    value: 1024
+    value: 128
   n_layer:
     value: 6
   n_head:
     value: 6
   n_embd:
-    value: 192
+    value: 384
   beta1:
     value: 0.9
   beta2:
-    value: 0.85
+    values: [0.85, 0.95]
   learning_rate:
-    values: [1e-2, 1e-3, 3e-2, 3e-3]
+    values: [1e-2, 3e-2, 3e-3]
   max_iters:
     value: 10000
   lr_decay_iters:
@@ -37,19 +37,31 @@ parameters:
   eval_interval:
     value: 20
   matrix_eps:
-    values: [1e-9]
+    values: [1e-6]
   weight_decay:
-    values: [1e-1]
+    values: [1e-5]
   gradient_value_clip:
     value: -1
   optim:
-    values: ['Shampoo','AdamW']
+    values: ['Shampoo']
   grafting:
     value: 'AdaGrad'
+  early_phase_ratio:
+    values: [0]
+  statistics_compute_steps:
+    value: 1
+  early_statistics_compute_steps:
+    value: 1
+  preconditioning_compute_steps:
+    values: [3]
+  early_preconditioning_compute_steps:
+    values: [3]
+  interval_cosine_thres:
+    values: [0.85, 0.9, 0.95]
+  interval_scheduling_factor:
+    values: [1.1, 1.4, 2]
 command:
   - ${env}
-  - torchrun 
-  - --standalone 
-  - --nproc_per_node=4
+  - python 
   - ${program}
   - ${args_no_boolean_flags}

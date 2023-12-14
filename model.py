@@ -299,18 +299,23 @@ class GPT(nn.Module):
                 grafting = LayerwiseGrafting.SGD
             elif args.grafting == 'None':
                 grafting = LayerwiseGrafting.NONE
-            hyperparams = ShampooHyperParams(beta2 = betas[1],
-                                            matrix_eps = args.matrix_eps, 
-                                            start_preconditioning_step = args.start_preconditioning_step,
-                                            preconditioning_compute_steps = args.preconditioning_compute_steps,
-                                            statistics_compute_steps = args.statistics_compute_steps,
-                                            block_size = args.shampoo_block_size,
-                                            gradient_value_clip=args.gradient_value_clip,
-                                            graft_type=grafting,
-                                            early_phase_iters = args.max_iters * args.early_phase_ratio,
-                                            early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
-                                            early_statistics_compute_steps = args.early_statistics_compute_steps)
-            optimizer = Shampoo(optim_groups, lr=learning_rate, momentum=betas[0],hyperparams=hyperparams)
+            param_names = {p: f"{i.replace('.','_')}" for i, p in self.named_parameters()}
+            hyperparams = ShampooHyperParams(beta2 = args.beta2,
+                                        matrix_eps = args.matrix_eps, 
+                                        start_preconditioning_step = args.start_preconditioning_step,
+                                        preconditioning_compute_steps = args.preconditioning_compute_steps,
+                                        statistics_compute_steps = args.statistics_compute_steps,
+                                        block_size = args.shampoo_block_size,
+                                        gradient_value_clip=args.gradient_value_clip,
+                                        weight_decay=args.weight_decay,
+                                        graft_type=grafting,
+                                        early_phase_iters = args.max_iters * args.early_phase_ratio,
+                                        early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
+                                        early_statistics_compute_steps = args.early_statistics_compute_steps,
+                                        interval_cosine_thres=args.interval_cosine_thres,
+                                        interval_scheduling_factor = args.interval_scheduling_factor,
+                                        total_iters = args.max_iters)
+            optimizer = Shampoo(optim_groups, lr=args.lr, momentum=args.beta1 ,hyperparams=hyperparams, param_names = param_names)
 
         return optimizer
 

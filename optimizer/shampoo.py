@@ -68,10 +68,18 @@ class ShampooHyperParams:
         gradient_value_clip: float = -1
         # Nesterov momentum
         reuse_matrix: bool = False
+        # Jorge
+        use_jorge: bool = False
+        
         # early curvature warmup
         early_phase_iters: float = 0
         early_statistics_compute_steps: int = 1
         early_preconditioning_compute_steps: int = 1
+
+        # Interval Scheduling
+        interval_cosine_thres: float = -1
+        interval_scheduling_factor: float = 1
+        total_iters: int = 1
 
 class Graft:
         """Base class to perform grafting onto Shampoo. This class does no grafting.
@@ -236,10 +244,13 @@ class Preconditioner:
                 if rank <= 1:
                         self.statistics = []
                         self.preconditioners = []
+                        self.max_eigens = []
                 else:
                         eps = self._hps.matrix_eps
                         self.statistics = [eps * torch.eye(s[0], device=device) for s in shapes]
                         self.preconditioners = [torch.eye(s[0], device=device) for s in shapes]
+                        self.max_eigens = [None for s in shapes]
+                self.max_eigen_dict = {}
 
         def add_statistics(self, grad):
                 """Compute statistics from gradients and add to the correct state entries.
@@ -257,7 +268,10 @@ class Preconditioner:
                         for i in range(rank):
                                 axes = list(range(i)) + list(range(i + 1, rank))
                                 stat = torch.tensordot(grad, grad, [axes, axes])
-                                self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
+                                if self._hps.use_jorge:
+                                        self.statistics[j*rank + i].mul_(0).add_(stat, alpha=1)
+                                else:
+                                        self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
 
         def exponent_for_preconditioner(self):
                 """Returns exponent to use for inverse-pth root M^{-1/p}."""
@@ -274,7 +288,7 @@ class Preconditioner:
                                initial_matrix = self.preconditioners[i]
                         else:
                                initial_matrix = None
-                        self.preconditioners[i] = ComputePower(
+                        self.preconditioners[i], self.max_eigens[i] = ComputePower(
                                         stat, exp, ridge_epsilon=eps, initial_matrix = initial_matrix)
 
         def preconditioned_grad(self, grad):
@@ -291,26 +305,30 @@ class Preconditioner:
                 partitioned_grads = self._partitioner.partition(reshaped_grad)
                 preconditioned_partitioned_grads = []
                 num_splits = self._partitioner.num_splits()
+                max_eigen_dict = {}
                 for i, grad in enumerate(partitioned_grads):
-                        preconditioners_for_grad = self.preconditioners[i * num_splits:(i + 1) *
-                                                                                                                                                                                                                        num_splits]
+                        preconditioners_for_grad = self.preconditioners[i * num_splits:(i + 1) * num_splits]
+                        max_eigens_for_grad = self.max_eigens[i * num_splits:(i + 1) * num_splits]
+                        max_eigen_dict[i] = {}
                         rank = len(grad.shape)
                         precond_grad = grad
                         for j in range(rank):
                                 preconditioner = preconditioners_for_grad[j]
                                 precond_grad = torch.tensordot(
                                                 precond_grad, preconditioner, [[0], [0]])
+                                if max_eigens_for_grad[j] is not None:
+                                        max_eigen_dict[i][j] = max_eigens_for_grad[j]
                         preconditioned_partitioned_grads.append(precond_grad)
                 merged_grad = self._partitioner.merge_partitions(
                                 preconditioned_partitioned_grads)
+                self.max_eigen_dict = max_eigen_dict
                 return torch.reshape(merged_grad, self._original_shape)
-
 
 STEP = 'step'
 MOMENTUM = 'momentum'
 PRECONDITIONER = 'preconditioner'
 GRAFT = 'graft'
-
+PRECONDITIONER_INTERVAL = 'preconditioner_interval'
 
 class Shampoo(optim.Optimizer):
         """The Shampoo optimizer."""
@@ -319,14 +337,25 @@ class Shampoo(optim.Optimizer):
                                 params,
                                 lr=1.0,
                                 momentum=0.9,
-                                hyperparams=ShampooHyperParams()):
+                                hyperparams=ShampooHyperParams(),
+                                param_names = None):
                 defaults = dict(lr=lr, momentum=momentum)
                 self.hps = hyperparams
+                self.param_names = param_names
+                self.cosine_dict = {}
+                self.cosine_layer_dict = {}
+                self.max_eigen_layer_dict = {}
+                self.interval_layer_dict = {}
+                self.update_times_layer_dict = {}
+                for mname in param_names.values():
+                       if 'bn' not in mname and 'ln' not in mname and 'bias' not in mname and 'norm' not in mname:
+                        self.update_times_layer_dict[mname] = 0
                 super(Shampoo, self).__init__(params, defaults)
 
         def init_var_state(self, var, state):
                 """Initialize the PyTorch state of for a single variable."""
                 state[STEP] = 0
+                state[PRECONDITIONER_INTERVAL] = self.hps.preconditioning_compute_steps
                 state[MOMENTUM] = torch.zeros_like(var.data, device=var.get_device())
                 state[PRECONDITIONER] = Preconditioner(var, self.hps)
                 if self.hps.graft_type == LayerwiseGrafting.ADAGRAD:
@@ -359,18 +388,29 @@ class Shampoo(optim.Optimizer):
                                 preconditioner = state[PRECONDITIONER]
                                 graft = state[GRAFT]
 
+                                shampoo_prev_grad = None
+                                if state[STEP] >= self.hps.start_preconditioning_step:
+                                        if state[STEP] >= hps.early_phase_iters and state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
+                                                shampoo_prev_grad = preconditioner.preconditioned_grad(grad)
+                                        if state[STEP] < hps.early_phase_iters and state[STEP] % hps.early_preconditioning_compute_steps == 0:
+                                                shampoo_prev_grad = preconditioner.preconditioned_grad(grad)
+
                                 # Gather statistics, compute preconditioners
                                 graft.add_statistics(grad)
                                 if state[STEP] >= hps.early_phase_iters:
                                         if state[STEP] % hps.statistics_compute_steps == 0:
                                                 preconditioner.add_statistics(grad)
-                                        if state[STEP] % hps.preconditioning_compute_steps == 0:
+                                        if state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
                                                 preconditioner.compute_preconditioners()
+                                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                        self.update_times_layer_dict[self.param_names[p]] += 1
                                 else:
                                         if state[STEP] % hps.early_statistics_compute_steps == 0:
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % hps.early_preconditioning_compute_steps == 0:
                                                 preconditioner.compute_preconditioners()
+                                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                        self.update_times_layer_dict[self.param_names[p]] += 1
 
                                 # Precondition gradients
                                 graft_grad = graft.precondition_gradient(grad)
@@ -387,6 +427,24 @@ class Shampoo(optim.Optimizer):
                                 original_grad_norm_sum += float(original_grad_norm**2)
                                 shampoo_norm_sum += float(shampoo_norm**2)
                                 graft_norm_sum += float(graft_norm**2)
+
+                                # For Cosine Similarity
+                                if shampoo_prev_grad is not None:
+                                        if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                cos = torch.nn.CosineSimilarity(dim=0)
+                                                cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
+                                                self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
+                                                self.max_eigen_layer_dict[self.param_names[p]] = preconditioner.max_eigen_dict
+                                
+                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                        if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
+                                                interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
+                                                interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
+                                                preconditioner_int = math.ceil(state[PRECONDITIONER_INTERVAL] * interval_mag)
+                                                if preconditioner_int > self.hps.total_iters:
+                                                       preconditioner_int = self.hps.total_iters
+                                                state[PRECONDITIONER_INTERVAL] = preconditioner_int
+                                        self.interval_layer_dict[self.param_names[p]] = state[PRECONDITIONER_INTERVAL]
 
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
@@ -420,6 +478,31 @@ class Shampoo(optim.Optimizer):
                         'grad_norm_ratio' : (shampoo_norm_sum**0.5) / (original_grad_norm_sum**0.5),
                         'graft_norm' : graft_norm_sum**0.5
                 }
+
+                if shampoo_prev_grad is not None:
+                       cosine_sim = self.cosine_layer_dict.values()
+                       self.cosine_dict['prev_cos_sim_mean'] = float(sum(cosine_sim) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_1e-2'] =count_non_ones(cosine_sim, thres = 1e-2)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-2'] =float(count_non_ones(cosine_sim, thres = 1e-2) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_3e-2'] =count_non_ones(cosine_sim, thres = 3e-2)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_3e-2'] =float(count_non_ones(cosine_sim, thres = 3e-2) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_1e-1'] =count_non_ones(cosine_sim, thres = 1e-1)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-1'] =float(count_non_ones(cosine_sim, thres = 1e-1) / len(cosine_sim))
+
+                       sorted_nums = sorted(cosine_sim, reverse=False)
+                       self.cosine_dict['prev_cos_sim_max_1'] = float(sorted_nums[-1])
+                       self.cosine_dict['prev_cos_sim_min_1'] = float(sorted_nums[0])
+                       self.cosine_dict['prev_cos_sim_min_2'] = float(sorted_nums[1])
+                       self.cosine_dict['prev_cos_sim_min_3'] = float(sorted_nums[2])
+                       self.cosine_dict['prev_cos_sim_min_4'] = float(sorted_nums[3])
+                       self.cosine_dict['prev_cos_sim_min_5'] = float(sorted_nums[4])
+
+def count_non_ones(lst, thres = 1e-3):
+    count = 0
+    for element in lst:
+        if (1 - element) >= thres:
+            count += 1
+    return count
 
 @torch.no_grad()
 def PowerIter(mat_g, error_tolerance=1e-6, num_iters=100):
@@ -551,8 +634,9 @@ def ComputePower(mat_g, p,
                                 torch.backends.cuda.matmul.allow_tf32 = False
                                 continue
                         if new_error > error * 1.2:
+                                max_ev = None
                                 if not recursive:
-                                        mat_root = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, None, True)
+                                        mat_root, max_ev = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, None, True)
                                 else:
                                         mat_root = matrix_neg_power(mat_g_raw, p)
                                 break
@@ -568,7 +652,7 @@ def ComputePower(mat_g, p,
         #         error_gt = (mat_root - ground_truth).norm() / ground_truth.norm()
         #         print(f'ComputePower: count={count}, error={error:.7f}, gt_error={error_gt:.7f}')
         torch.backends.cuda.matmul.allow_tf32 = tf32_flag
-        return mat_root
+        return mat_root, max_ev
 
 
 VAR_SHAPE = 'var_shape'
