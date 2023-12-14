@@ -105,6 +105,9 @@ parser.add_argument('--device', default='cuda', type=str, choices=['cpu', 'cuda'
 parser.add_argument('--dtype', default='bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16', type=str, choices=['float32', 'bfloat16', 'float16'])
 parser.add_argument('--compile', action='store_true', default=False)
 
+parser.add_argument('--interval_cosine_thres', default=-1, type=float)
+parser.add_argument('--interval_scheduling_factor', default=1, type=float)
+
 # Parse the arguments
 args = parser.parse_args()
 args.n_gpus = torch.cuda.device_count()
