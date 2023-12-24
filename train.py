@@ -108,6 +108,14 @@ parser.add_argument('--compile', action='store_true', default=False)
 parser.add_argument('--interval_cosine_thres', default=-1, type=float)
 parser.add_argument('--interval_scheduling_factor', default=1, type=float)
 
+parser.add_argument('--interval_cosine_thres_all', default=-1, type=float)
+parser.add_argument('--interval_scheduling_factor_all', default=1, type=float)
+
+parser.add_argument('--inverse_exponent', default=0, type=float)
+parser.add_argument('--use_inverse', action='store_true', default=False,
+                    help='shampoo_inverse')
+parser.add_argument('--dmp_opt', default='mean', type=str)
+
 # Parse the arguments
 args = parser.parse_args()
 args.n_gpus = torch.cuda.device_count()

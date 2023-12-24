@@ -68,8 +68,9 @@ class ShampooHyperParams:
         gradient_value_clip: float = -1
         # Nesterov momentum
         reuse_matrix: bool = False
-        # Jorge
-        use_jorge: bool = False
+        # Inverse
+        use_inverse: bool = False
+        dmp_opt: str = 'mean'
         
         # early curvature warmup
         early_phase_iters: float = 0
@@ -245,12 +246,15 @@ class Preconditioner:
                         self.statistics = []
                         self.preconditioners = []
                         self.max_eigens = []
+                        self.meam_eigens = []
                 else:
                         eps = self._hps.matrix_eps
                         self.statistics = [eps * torch.eye(s[0], device=device) for s in shapes]
                         self.preconditioners = [torch.eye(s[0], device=device) for s in shapes]
                         self.max_eigens = [None for s in shapes]
+                        self.mean_eigens = [None for s in shapes]
                 self.max_eigen_dict = {}
+                self.mean_eigen_dict = {}
 
         def add_statistics(self, grad):
                 """Compute statistics from gradients and add to the correct state entries.
@@ -268,10 +272,7 @@ class Preconditioner:
                         for i in range(rank):
                                 axes = list(range(i)) + list(range(i + 1, rank))
                                 stat = torch.tensordot(grad, grad, [axes, axes])
-                                if self._hps.use_jorge:
-                                        self.statistics[j*rank + i].mul_(0).add_(stat, alpha=1)
-                                else:
-                                        self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
+                                self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
 
         def exponent_for_preconditioner(self):
                 """Returns exponent to use for inverse-pth root M^{-1/p}."""
@@ -284,12 +285,14 @@ class Preconditioner:
                 exp = self.exponent_for_preconditioner()
                 eps = self._hps.matrix_eps
                 for i, stat in enumerate(self.statistics):
-                        if self._hps.reuse_matrix:
-                               initial_matrix = self.preconditioners[i]
+                        if self._hps.use_inverse:
+                                self.preconditioners[i], self.max_eigens[i] = ComputeInverse(
+                                        stat, eps, self._hps.dmp_opt
+                                )
                         else:
-                               initial_matrix = None
-                        self.preconditioners[i], self.max_eigens[i] = ComputePower(
-                                        stat, exp, ridge_epsilon=eps, initial_matrix = initial_matrix)
+                                self.preconditioners[i], self.max_eigens[i] = ComputePower(
+                                        stat, exp, ridge_epsilon=eps)
+                        self.mean_eigens[i] = (torch.trace(stat).item() / stat.shape[-1])
 
         def preconditioned_grad(self, grad):
                 """Precondition the gradient.
@@ -306,10 +309,13 @@ class Preconditioner:
                 preconditioned_partitioned_grads = []
                 num_splits = self._partitioner.num_splits()
                 max_eigen_dict = {}
+                mean_eigen_dict = {}
                 for i, grad in enumerate(partitioned_grads):
                         preconditioners_for_grad = self.preconditioners[i * num_splits:(i + 1) * num_splits]
                         max_eigens_for_grad = self.max_eigens[i * num_splits:(i + 1) * num_splits]
+                        mean_eigens_for_grad = self.mean_eigens[i * num_splits:(i + 1) * num_splits]
                         max_eigen_dict[i] = {}
+                        mean_eigen_dict[i] = {}
                         rank = len(grad.shape)
                         precond_grad = grad
                         for j in range(rank):
@@ -318,10 +324,13 @@ class Preconditioner:
                                                 precond_grad, preconditioner, [[0], [0]])
                                 if max_eigens_for_grad[j] is not None:
                                         max_eigen_dict[i][j] = max_eigens_for_grad[j]
+                                if mean_eigens_for_grad[j] is not None:
+                                        mean_eigen_dict[i][j] = mean_eigens_for_grad[j]
                         preconditioned_partitioned_grads.append(precond_grad)
                 merged_grad = self._partitioner.merge_partitions(
                                 preconditioned_partitioned_grads)
                 self.max_eigen_dict = max_eigen_dict
+                self.mean_eigen_dict = mean_eigen_dict
                 return torch.reshape(merged_grad, self._original_shape)
 
 STEP = 'step'
@@ -345,10 +354,11 @@ class Shampoo(optim.Optimizer):
                 self.cosine_dict = {}
                 self.cosine_layer_dict = {}
                 self.max_eigen_layer_dict = {}
+                self.mean_eigen_layer_dict = {}
                 self.interval_layer_dict = {}
                 self.update_times_layer_dict = {}
                 for mname in param_names.values():
-                       if 'bn' not in mname and 'ln' not in mname and 'bias' not in mname and 'norm' not in mname:
+                       if 'bn' not in mname and 'bias' not in mname and 'norm' not in mname:
                         self.update_times_layer_dict[mname] = 0
                 super(Shampoo, self).__init__(params, defaults)
 
@@ -402,14 +412,14 @@ class Shampoo(optim.Optimizer):
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
                                                 preconditioner.compute_preconditioners()
-                                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                         self.update_times_layer_dict[self.param_names[p]] += 1
                                 else:
                                         if state[STEP] % hps.early_statistics_compute_steps == 0:
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % hps.early_preconditioning_compute_steps == 0:
                                                 preconditioner.compute_preconditioners()
-                                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                         self.update_times_layer_dict[self.param_names[p]] += 1
 
                                 # Precondition gradients
@@ -430,13 +440,14 @@ class Shampoo(optim.Optimizer):
 
                                 # For Cosine Similarity
                                 if shampoo_prev_grad is not None:
-                                        if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                        if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                 cos = torch.nn.CosineSimilarity(dim=0)
                                                 cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
                                                 self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
                                                 self.max_eigen_layer_dict[self.param_names[p]] = preconditioner.max_eigen_dict
+                                                self.mean_eigen_layer_dict[self.param_names[p]] = preconditioner.mean_eigen_dict
                                 
-                                if 'bn' not in self.param_names[p] and 'ln' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                         if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
                                                 interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
                                                 interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
@@ -573,7 +584,6 @@ def ComputePower(mat_g, p,
                                                                  iter_count=100,
                                                                  error_tolerance=1e-6,
                                                                  ridge_epsilon=1e-6,
-                                                                 initial_matrix = None,
                                                                  recursive = False):
         """A method to compute G^{-1/p} using a coupled Newton iteration.
 
@@ -636,7 +646,7 @@ def ComputePower(mat_g, p,
                         if new_error > error * 1.2:
                                 max_ev = None
                                 if not recursive:
-                                        mat_root, max_ev = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, None, True)
+                                        mat_root, max_ev = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, True)
                                 else:
                                         mat_root = matrix_neg_power(mat_g_raw, p)
                                 break
@@ -741,3 +751,48 @@ def merge_grads(state, grads):
         grads = conc_grads
     assert len(grads) == 1
     return grads[0]
+
+def eye_like(tensor):
+    return torch.eye(*tensor.size(), out=torch.empty_like(tensor))
+
+def ComputeInverse(stat, damping, dmp_opt = 'mean'):
+        if dmp_opt == 'mean':
+                eps = damping * torch.trace(stat).item() / stat.shape[-1]
+                return cholesky_inv(stat, eps), None
+        elif dmp_opt == 'max':
+                max_eig = power_method_max_eigen(stat)
+                eps = max_eig*damping
+                return cholesky_inv(stat, eps), max_eig
+
+def cholesky_inv(X, damping=1e-12):
+    diag = torch.diagonal(X)
+    diag += damping
+    u = torch.linalg.cholesky(X)
+    diag -= damping
+    return torch.cholesky_inverse(u)
+
+def power_method_max_eigen(matrix, max_iterations=100, tolerance=1e-5):
+    n, m = matrix.size()
+    if n != m:
+        raise ValueError("Matrix must be square.")
+
+    device = matrix.device  # matrixのデバイスを取得
+
+    # 初期ベクトル (デバイスを揃える)
+    b_k = torch.rand(n, device=device)
+
+    for _ in range(max_iterations):
+        # 行列Aとベクトルb_kの積
+        b_k1 = torch.matmul(matrix, b_k)
+        
+        # 次のベクトル
+        b_k1_norm = torch.norm(b_k1).item()
+        b_k_next = b_k1 / b_k1_norm
+        
+        if torch.norm(b_k_next - b_k).item() < tolerance:
+            break
+        
+        b_k = b_k_next
+
+    # 固有値を返す (デバイスを揃える)
+    return float(b_k1_norm)

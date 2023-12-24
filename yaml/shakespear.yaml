@@ -56,9 +56,9 @@ parameters:
     values: [3]
   early_preconditioning_compute_steps:
     values: [3]
-  interval_cosine_thres:
+  interval_cosine_thres_all:
     values: [0.85, 0.9, 0.95]
-  interval_scheduling_factor:
+  interval_scheduling_factor_all:
     values: [1.1, 1.4, 2]
 command:
   - ${env}

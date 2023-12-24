@@ -314,7 +314,12 @@ class GPT(nn.Module):
                                         early_statistics_compute_steps = args.early_statistics_compute_steps,
                                         interval_cosine_thres=args.interval_cosine_thres,
                                         interval_scheduling_factor = args.interval_scheduling_factor,
-                                        total_iters = args.max_iters)
+                                        interval_cosine_thres_all = args.interval_cosine_thres_all,
+                                        interval_scheduling_factor_all = args.interval_scheduling_factor_all,
+                                        total_iters = args.max_iters,
+                                        inverse_exponent_override = args.inverse_exponent,
+                                        use_inverse = args.use_inverse,
+                                        dmp_opt = args.dmp_opt)
             optimizer = Shampoo(optim_groups, lr=args.lr, momentum=args.beta1 ,hyperparams=hyperparams, param_names = param_names)
 
         return optimizer
