@@ -11,7 +11,7 @@ parameters:
   gradient_accumulation_steps:
     value: 8
   batch_size:
-    value: 12
+    value: 6
   block_size:
     value: 1024
   n_layer:
@@ -28,6 +28,8 @@ parameters:
     values: [3e-3, 1e-3, 3e-4]
   max_iters:
     value: 10000
+  max_samples:
+    value: 4915200000
   lr_decay_iters:
     value: 10000
   warmup_iters:

@@ -71,6 +71,7 @@ parser.add_argument('--optim', default='AdamW', type=str)
 # optimizer config
 parser.add_argument('--learning_rate', default=3e-3, type=float)
 parser.add_argument('--max_iters', default=600000, type=int)
+parser.add_argument('--max_samples', default=-1, type=int)
 parser.add_argument('--weight_decay', default=1e-1, type=float)
 parser.add_argument('--beta1', default=0.9, type=float)
 parser.add_argument('--beta2', default=0.95, type=float)
@@ -124,6 +125,11 @@ args.batch_size_token = args.batch_size * args.block_size * args.gradient_accumu
 args.lr = args.learning_rate * (args.batch_size_token / args.base_batch_size_token)**args.lr_batch_exp
 args.min_lr = args.lr * args.lr_ratio
 # Construct the config dictionary
+
+if args.max_samples != -1:
+    args.max_iters = args.max_samples // args.batch_size_token
+    args.lr_decay_iters = args.max_iters
+
 config = vars(args)
 
 # various inits, derived attributes, I/O setup
@@ -333,6 +339,7 @@ while True:
         if args.wandb_log:
             log_dict = {
                 "iter": iter_num,
+                "samples" : args.batch_size_token * iter_num,
                 "train/loss": losses['train'],
                 "val/loss": losses['val'],
                 "lr": lr,
