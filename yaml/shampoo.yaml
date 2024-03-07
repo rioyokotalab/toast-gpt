@@ -9,7 +9,7 @@ parameters:
   dataset:
     value: 'openwebtext'
   gradient_accumulation_steps:
-    value: 8
+    values: [8, 16, 32, 64, 128, 256, 512, 1024]
   batch_size:
     value: 6
   block_size:
@@ -23,9 +23,9 @@ parameters:
   beta1:
     value: 0.9
   beta2:
-    value: 0.85
+    values: [0.85, 0.5]
   learning_rate:
-    values: [3e-3, 1e-3, 3e-4]
+    values: [3e-2, 1e-2, 3e-3, 1e-3, 1e-1]
   max_iters:
     value: 10000
   max_samples:
@@ -39,11 +39,11 @@ parameters:
   eval_interval:
     value: 20
   matrix_eps:
-    values: [1e-05,1e-8]
+    values: [1e-8]
   gradient_value_clip:
     value: -1
   optim:
-    values: ['Shampoo']
+    values: ['Shampoo', 'AdamW']
   grafting:
     value: 'AdaGrad'
   start_preconditioning_step:

@@ -127,7 +127,8 @@ args.min_lr = args.lr * args.lr_ratio
 # Construct the config dictionary
 
 if args.max_samples != -1:
-    args.max_iters = args.max_samples // args.batch_size_token
+    args.max_iters = int(args.max_samples // args.batch_size_token)
+    args.warmup_iters = int(args.max_iters * 0.2)
     args.lr_decay_iters = args.max_iters
 
 config = vars(args)
