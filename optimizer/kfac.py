@@ -49,10 +49,14 @@ def cholesky_inv(X, damping=1e-7):
     diag -= damping
     return torch.cholesky_inverse(u)
 
-def inverse_curvature(model, damping, eps=1e-10):
+def inverse_curvature(model, damping, regmean_reg=1, eps=1e-10):
     for module in model.children():
         if not is_supported(module):
             continue
+        if regmean_reg != 1:
+            module.A = regmean_reg * module.A + (1-regmean_reg) * torch.diag(torch.diag(module.A))
+            module.B = regmean_reg * module.B + (1-regmean_reg) * torch.diag(torch.diag(module.B))
+            damping_A ,damping_B= eps, eps
         A_eig_mean = (module.A.trace()) / module.A.shape[-1]
         B_eig_mean = (module.B.trace()) / module.B.shape[-1]
         pi = torch.sqrt(A_eig_mean / B_eig_mean)
