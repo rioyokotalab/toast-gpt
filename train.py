@@ -250,7 +250,7 @@ if args.block_size < model.config.block_size:
     model.crop_block_size(args.block_size)
     model_args['block_size'] = args.block_size # so that the checkpoint will have the right value
 model.to(args.device)
-
+print(model)
 if args.optim == 'K-FAC':
     register_kfac_hook(model, ema_decay = args.ema_decay)
 

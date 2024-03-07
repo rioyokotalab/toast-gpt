@@ -7,7 +7,12 @@ def register_kfac_hook(model, ema_decay=1, approximation = 'expand'):
     def backward_hook(self, in_grads, out_grads):
         in_data = self.in_data
         out_grad = out_grads[0]
-        if in_data.ndim == 3:
+        if in_data.ndim == 1:
+            in_data = in_data.unsqueeze(0)
+            M = in_data.shape
+        elif in_data.ndim == 2:
+            M, P_in = in_data.shape
+        elif in_data.ndim == 3:
             M, R, P_in = in_data.shape
             P_out = out_grad.shape[2]
             if approximation == 'expand':
@@ -18,8 +23,8 @@ def register_kfac_hook(model, ema_decay=1, approximation = 'expand'):
                 out_grad = out_grad.sum(dim=1)
         if isinstance(self, torch.nn.Embedding):
             counts = torch.stack(
-                [torch.bincount(in_data[i].int(), minlength=module.num_embeddings) for i in range(in_data.shape[0])])
-            in_data = counts.float().to(module.weight.device)
+                [torch.bincount(in_data[i].int(), minlength=self.num_embeddings) for i in range(in_data.shape[0])])
+            in_data = counts.float().to(self.weight.device)
             out_grad = out_grad.flatten(end_dim=-2)
         A = torch.matmul(in_data.T, in_data) / M
         B = torch.matmul(out_grad.T, out_grad)
@@ -29,7 +34,7 @@ def register_kfac_hook(model, ema_decay=1, approximation = 'expand'):
         else:
             self.A = A
             self.B = B
-    for module in model.children():
+    for (name, module) in model.named_modules():
         if not is_supported(module):
             continue
         module.register_forward_hook(forward_hook)
@@ -50,7 +55,7 @@ def cholesky_inv(X, damping=1e-7):
     return torch.cholesky_inverse(u)
 
 def inverse_curvature(model, damping, regmean_reg=1, eps=1e-10):
-    for module in model.children():
+    for (name, module) in model.named_modules():
         if not is_supported(module):
             continue
         if regmean_reg != 1:
@@ -68,7 +73,7 @@ def inverse_curvature(model, damping, regmean_reg=1, eps=1e-10):
         module.B_inv = cholesky_inv(module.B, damping_B)
 
 def precondition_grad(model):
-    for module in model.children():
+    for (name, module) in model.named_modules():
         if not is_supported(module):
             continue
         module.grad = module.B_inv @ module.grad @ module.A_inv
