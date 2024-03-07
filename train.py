@@ -105,7 +105,7 @@ parser.add_argument('--backend', default='nccl', type=str, choices=['nccl', 'glo
 parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD', 'AdaGrad'])
 # system
 parser.add_argument('--device', default='cuda', type=str, choices=['cpu', 'cuda', 'mps'])
-parser.add_argument('--dtype', default='bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16', type=str, choices=['float32', 'bfloat16', 'float16'])
+parser.add_argument('--dtype', default='float32' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16', type=str, choices=['float32', 'bfloat16', 'float16'])
 parser.add_argument('--compile', action='store_true', default=False)
 
 parser.add_argument('--interval_cosine_thres', default=-1, type=float)
@@ -264,7 +264,7 @@ if args.init_from == 'resume':
 checkpoint = None # free up memory
 
 # compile the model
-if compile:
+if args.compile:
     print("compiling the model... (takes a ~minute)")
     unoptimized_model = model
     model = torch.compile(model) # requires PyTorch 2.0

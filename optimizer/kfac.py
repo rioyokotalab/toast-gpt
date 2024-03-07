@@ -9,7 +9,7 @@ def register_kfac_hook(model, ema_decay=1, approximation = 'expand'):
         out_grad = out_grads[0]
         if in_data.ndim == 1:
             in_data = in_data.unsqueeze(0)
-            M = in_data.shape
+            M, P_in = in_data.shape
         elif in_data.ndim == 2:
             M, P_in = in_data.shape
         elif in_data.ndim == 3:
@@ -38,7 +38,7 @@ def register_kfac_hook(model, ema_decay=1, approximation = 'expand'):
         if not is_supported(module):
             continue
         module.register_forward_hook(forward_hook)
-        module.register_backward_hook(backward_hook)
+        module.register_full_backward_hook(backward_hook)
 
 def is_supported(module):
     if len(list(module.children())) > 0:
@@ -58,6 +58,8 @@ def inverse_curvature(model, damping, regmean_reg=1, eps=1e-10):
     for (name, module) in model.named_modules():
         if not is_supported(module):
             continue
+        if not hasattr(module, 'A'):
+            continue
         if regmean_reg != 1:
             module.A = regmean_reg * module.A + (1-regmean_reg) * torch.diag(torch.diag(module.A))
             module.B = regmean_reg * module.B + (1-regmean_reg) * torch.diag(torch.diag(module.B))
@@ -76,4 +78,9 @@ def precondition_grad(model):
     for (name, module) in model.named_modules():
         if not is_supported(module):
             continue
-        module.grad = module.B_inv @ module.grad @ module.A_inv
+        if not hasattr(module, 'A'):
+            continue
+        if isinstance(module, torch.nn.Embedding):
+            module.grad = module.A_inv @ module.weight.grad @ module.B_inv
+        else:
+            module.grad = module.B_inv @ module.weight.grad @ module.A_inv
