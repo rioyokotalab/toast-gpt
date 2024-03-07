@@ -251,7 +251,7 @@ if args.block_size < model.config.block_size:
     model_args['block_size'] = args.block_size # so that the checkpoint will have the right value
 model.to(args.device)
 
-if args.optim == 'kfac':
+if args.optim == 'K-FAC':
     register_kfac_hook(model, ema_decay = args.ema_decay)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
@@ -378,14 +378,14 @@ while True:
         X, Y = get_batch('train')
         # backward pass, with gradient scaling if training in fp16
         scaler.scale(loss).backward()
-        if args.optim == 'kfac':
+        if args.optim == 'K-FAC':
             inverse_curvature(model, damping = args.damping)
     # clip the gradient
     if args.grad_clip != 0.0:
         scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
     # step the optimizer and scaler if training in fp16
-    if args.optim == 'kfac':
+    if args.optim == 'K-FAC':
         precondition_grad(model)
     scaler.step(optimizer)
     scaler.update()
