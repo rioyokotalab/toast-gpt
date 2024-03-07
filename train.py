@@ -32,7 +32,6 @@ from model import GPTConfig, GPT
 import argparse
 import torch
 
-from optimizer.kfac.preconditioner import KFACPreconditioner
 import torch._dynamo
 torch._dynamo.config.suppress_errors = True
 
@@ -254,14 +253,6 @@ scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype == 'float16'))
 
 # optimizer
 optimizer = model.configure_optimizers(args.optim, args.weight_decay, args.lr, (args.beta1, args.beta2), args, device_type)
-if 'K-FAC' in args.optim:
-    preconditioner = KFACPreconditioner(model,
-                                        factor_update_steps=args.preconditioning_compute_steps,
-                                        inv_update_steps=args.statistics_compute_steps,
-                                        damping=args.matrix_eps,
-                                        factor_decay=args.beta2,
-                                        kl_clip=args.kl_clip,
-                                        accumulation_steps=args.gradient_accumulation_steps)
 if args.init_from == 'resume':
     optimizer.load_state_dict(checkpoint['optimizer'])
 checkpoint = None # free up memory
@@ -346,21 +337,6 @@ while True:
                 "lr": lr,
                 "mfu": running_mfu*100, # convert to percentage
             }
-            if args.optim == 'Shampoo':
-                if hasattr(optimizer, 'norm_dict'):
-                    log_dict['Norm/'] = optimizer.norm_dict
-                    log_dict['Cosine/'] = optimizer.cosine_dict
-                    log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
-                    log_dict['MaxEigenLayer/'] = optimizer.max_eigen_layer_dict
-                    log_dict['IntervalLayer/'] = optimizer.interval_layer_dict
-                    log_dict['UpdateLayer/'] = optimizer.update_times_layer_dict
-                    max_eigen_list = create_max_eigen_list(optimizer.max_eigen_layer_dict)
-                    if len(max_eigen_list) > 0:
-                        log_dict['MaxEigen/'] = {
-                        'Max' : max(max_eigen_list),
-                        'Min' : min(max_eigen_list),
-                        'Mean' : sum(max_eigen_list) / len(max_eigen_list)
-                        }
             wandb.log(log_dict)
         # if losses['val'] < best_val_loss or args.always_save_checkpoint:
         #     best_val_loss = losses['val']
@@ -396,8 +372,6 @@ while True:
         X, Y = get_batch('train')
         # backward pass, with gradient scaling if training in fp16
         scaler.scale(loss).backward()
-        if 'K-FAC' in args.optim:
-            preconditioner.step()
     # clip the gradient
     if args.grad_clip != 0.0:
         scaler.unscale_(optimizer)
