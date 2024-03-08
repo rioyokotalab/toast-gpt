@@ -80,6 +80,7 @@ def precondition_grad(model):
             continue
         if not hasattr(module, 'A'):
             continue
+        print(f"Precond {name}")
         if isinstance(module, torch.nn.Embedding):
             module.grad = module.A_inv @ module.weight.grad @ module.B_inv
         else:
